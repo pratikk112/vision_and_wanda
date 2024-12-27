@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from sklearn.cluster import KMeans  # Import KMeans for clustering
 
 # Load the image
 image_path = 'carton_top_view.jpg'
@@ -32,28 +33,32 @@ for contour in contours:
             all_descriptors.append(descriptors)
 
 # Stack all descriptors for clustering
-all_descriptors = np.vstack(all_descriptors)
+if all_descriptors:  # Ensure there are descriptors to cluster
+    all_descriptors = np.vstack(all_descriptors)
 
-# Use k-means to cluster descriptors
-k = 5  # Number of clusters
-criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.2)
-_, labels, centers = cv2.kmeans(all_descriptors, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+    # Use KMeans to cluster descriptors
+    k = 5  # Number of clusters
+    kmeans = KMeans(n_clusters=k, random_state=0)
+    kmeans.fit(all_descriptors)
 
-# Find the most frequent cluster
-unique, counts = np.unique(labels, return_counts=True)
-most_frequent_cluster = unique[np.argmax(counts)]
+    # Find the most frequent cluster
+    labels = kmeans.labels_
+    unique, counts = np.unique(labels, return_counts=True)
+    most_frequent_cluster = unique[np.argmax(counts)]
 
-# Highlight items containing the most frequent cluster
-highlighted_image = image.copy()
-for item, (x, y, w, h) in segmented_images:
-    _, descriptors = sift.detectAndCompute(item, None)
-    if descriptors is not None:
-        cluster_labels = kmeans.predict(descriptors)
-        if most_frequent_cluster in cluster_labels:
-            cv2.rectangle(highlighted_image, (x, y), (x+w, y+h), (0, 255, 0), 3)
+    # Highlight items containing the most frequent cluster
+    highlighted_image = image.copy()
+    for item, (x, y, w, h) in segmented_images:
+        _, descriptors = sift.detectAndCompute(item, None)
+        if descriptors is not None:
+            cluster_labels = kmeans.predict(descriptors)
+            if most_frequent_cluster in cluster_labels:
+                cv2.rectangle(highlighted_image, (x, y), (x+w, y+h), (0, 255, 0), 3)
 
-# Display the results
-cv2.imshow("Original Image", image)
-cv2.imshow("Highlighted Image", highlighted_image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+    # Display the results
+    cv2.imshow("Original Image", image)
+    cv2.imshow("Highlighted Image", highlighted_image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+else:
+    print("No features found in the image.")
