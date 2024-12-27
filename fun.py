@@ -86,7 +86,3 @@ if __name__ == "__main__":
         visualize_features(original_image, most_frequent_features)
     else:
         print("Not enough boxes detected for feature matching.")
-
-Performance: For a large number of boxes, consider optimizing feature matching using techniques like bag-of-words models or vocabulary trees.
-Real-World Considerations: Factors like lighting variations, occlusions, and perspective changes in your images can impact feature detection.
-Remember to replace "your_image.jpg" with your image path. Let me know if you have any specific questions about implementing the box segmentation or need help with fine-tuning the process!
