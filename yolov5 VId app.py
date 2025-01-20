@@ -45,6 +45,7 @@ def process_and_display_video(input_path, model):
     video.release()
     out.release()
 
+    stframe.empty()  # Clear the frame display when processing is complete
     return output_path
 
 # Load the custom YOLOv5 model
