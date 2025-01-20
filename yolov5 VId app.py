@@ -3,20 +3,26 @@ import torch
 import cv2
 import tempfile
 import numpy as np
+import os
 
 st.title("Custom YOLOv5 Object Detection App")
 
-# Function to process the video using YOLOv5
-def process_video(input_path, output_path, model):
+# Function to process the video and display detections
+def process_and_display_video(input_path, model):
     # Load the input video
     video = cv2.VideoCapture(input_path)
     frame_width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = int(video.get(cv2.CAP_PROP_FPS))
 
-    # Define the codec and create VideoWriter object
+    # Create a temporary file for the output video
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_output:
+        output_path = temp_output.name
+
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
+
+    stframe = st.empty()  # Streamlit's placeholder to display frames dynamically
 
     while video.isOpened():
         ret, frame = video.read()
@@ -28,13 +34,18 @@ def process_video(input_path, output_path, model):
 
         # Perform detection
         results = model(rgb_frame)
-        detected_frame = np.squeeze(results.render())  # Render detected boxes
+        detected_frame = np.squeeze(results.render())  # Render detections on the frame
 
-        # Write the frame to the output video
+        # Write the detected frame to the output video
         out.write(cv2.cvtColor(detected_frame, cv2.COLOR_RGB2BGR))
+
+        # Display the current frame with detections
+        stframe.image(detected_frame, channels="RGB", use_column_width=True)
 
     video.release()
     out.release()
+
+    return output_path
 
 # Load the custom YOLOv5 model
 @st.cache_resource
@@ -43,7 +54,6 @@ def load_custom_model(weights_path):
 
 # Path to your trained model weights
 weights_path = "best.pt"
-
 model = load_custom_model(weights_path)
 
 # Step 1: Upload the video file
@@ -57,20 +67,12 @@ if uploaded_video is not None:
 
     st.video(input_video_path)  # Display the uploaded video
 
-    # Step 2: Process the video with YOLOv5
+    # Step 2: Process and display detections frame by frame
     st.write("Processing video...")
-
-    # Create a temporary file for the output video
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_output:
-        output_video_path = temp_output.name
-
-    process_video(input_video_path, output_video_path, model)
+    output_video_path = process_and_display_video(input_video_path, model)
     st.success("Processing completed!")
 
-    # Step 3: Display the processed video
-    st.video(output_video_path)
-
-    # Step 4: Provide download option
+    # Step 3: Provide download option for the processed video
     with open(output_video_path, "rb") as processed_file:
         st.download_button(
             label="Download Processed Video",
@@ -79,7 +81,6 @@ if uploaded_video is not None:
             mime="video/mp4"
         )
 
-    # Cleanup: Optionally remove temporary files
-    import os
+    # Cleanup: Remove temporary files
     os.remove(input_video_path)
     os.remove(output_video_path)
