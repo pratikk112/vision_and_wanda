@@ -1,51 +1,44 @@
 import streamlit as st
 import torch
-import cv2
 import tempfile
+from moviepy.editor import VideoFileClip, ImageSequenceClip
 import numpy as np
 import os
 
-st.title("Custom YOLOv5 Object Detection App")
+st.title("Custom YOLOv5 Object Detection App with MoviePy")
 
-# Function to process the video and display detections
-def process_and_display_video(input_path, model):
-    # Load the input video
-    video = cv2.VideoCapture(input_path)
-    frame_width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
-    frame_height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = int(video.get(cv2.CAP_PROP_FPS))
+# Function to process video and display detections with frame skipping
+def process_and_display_video(input_path, model, skip_frames=5):
+    # Load the input video using MoviePy
+    video_clip = VideoFileClip(input_path)
+    fps = video_clip.fps
 
-    # Create a temporary file for the output video
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_output:
-        output_path = temp_output.name
+    # Extract frames and perform detection
+    processed_frames = []
+    stframe = st.empty()  # Streamlit placeholder to display frames dynamically
 
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
-
-    stframe = st.empty()  # Streamlit's placeholder to display frames dynamically
-
-    while video.isOpened():
-        ret, frame = video.read()
-        if not ret:
-            break
-
-        # Convert frame to RGB
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    for i, frame in enumerate(video_clip.iter_frames(fps=fps, dtype="uint8")):
+        # Skip frames for faster processing
+        if i % skip_frames != 0:
+            continue
 
         # Perform detection
-        results = model(rgb_frame)
+        results = model(frame)
         detected_frame = np.squeeze(results.render())  # Render detections on the frame
+        processed_frames.append(detected_frame)
 
-        # Write the detected frame to the output video
-        out.write(cv2.cvtColor(detected_frame, cv2.COLOR_RGB2BGR))
-
-        # Display the current frame with detections
+        # Display the current frame
         stframe.image(detected_frame, channels="RGB", use_column_width=True)
 
-    video.release()
-    out.release()
+    # Clear the frame display when processing is complete
+    stframe.empty()
 
-    stframe.empty()  # Clear the frame display when processing is complete
+    # Create the output video using MoviePy
+    output_clip = ImageSequenceClip(processed_frames, fps=fps // skip_frames)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_output:
+        output_clip.write_videofile(temp_output.name, codec="libx264", audio=False)
+        output_path = temp_output.name
+
     return output_path
 
 # Load the custom YOLOv5 model
@@ -69,8 +62,8 @@ if uploaded_video is not None:
     st.video(input_video_path)  # Display the uploaded video
 
     # Step 2: Process and display detections frame by frame
-    st.write("Processing video...")
-    output_video_path = process_and_display_video(input_video_path, model)
+    st.write("Processing video... This might take a while.")
+    output_video_path = process_and_display_video(input_video_path, model, skip_frames=5)
     st.success("Processing completed!")
 
     # Step 3: Provide download option for the processed video
