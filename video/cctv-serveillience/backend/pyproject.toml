@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "cctv-backend"
+version = "0.1.0"
+description = ""
+authors = ["Pratik Kaushik"]
+license = "Azure"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = {extras = ["standard"], version = "^0.115.11"}
+sqlalchemy = "^2.0.38"
+asyncpg = "^0.30.0"
+alembic = "^1.15.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
